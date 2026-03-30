@@ -15,25 +15,31 @@ print("1. Indian Sign Language")
 print("2. American Sign Language")
 print("3. Hand Gesture")
 print("4. Bengali Sign Language")
-choice = input("Enter choice (1/2/3/4): ").strip()
+# --- Configuration & Model Selection ---
+print("--- Sign Language Recognition System ---")
 
-if choice == "1":
-    model_dir = "model/indian_sign_language"
-elif choice == "2":
-    model_dir = "model/american_sign_language"
-elif choice == "3":
-    model_dir = "model/hand gestures"
-elif choice == "4":
-    model_dir = "model/bengali_sign_language"
-else:
-    raise ValueError("❌ Invalid choice! Please select 1, 2, 3, or 4.")
+# Dynamically resolve the project root (one directory up from 'src' where this script resides)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# === Load model and label encoder ===
-model_path = os.path.join(model_dir, "gesture_model.pkl")
+options = {
+    "1": os.path.join(BASE_DIR, "model", "indian_sign_language"),
+    "2": os.path.join(BASE_DIR, "model", "american_sign_language"),
+    "3": os.path.join(BASE_DIR, "model", "hand gestures"),
+    "4": os.path.join(BASE_DIR, "model", "bengali_sign_language")
+}
+
+choice = input("Enter choice (1: ISL, 2: ASL, 3: Gestures, 4: BSL): ").strip()
+model_dir = options.get(choice)
+
+if not model_dir:
+    raise ValueError("❌ Invalid choice!")
+
+# Load model and label encoder
+model_path = os.path.join(model_dir, "gesture_lstm_model.h5")
 encoder_path = os.path.join(model_dir, "label_encoder.pkl")
 
 if not os.path.exists(model_path) or not os.path.exists(encoder_path):
-    raise FileNotFoundError(f"❌ Model or encoder not found in '{model_dir}'. Please train first.")
+    raise FileNotFoundError(f"❌ Assets not found in verified path: {model_dir}")
 
 model = joblib.load(model_path)
 label_encoder = joblib.load(encoder_path)
