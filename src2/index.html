@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Sign Language Translator</title>
+    <style>
+        body { 
+            margin: 0; 
+            background-color: #121212; 
+            color: #4CAF50; 
+            font-family: 'Courier New', Courier, monospace; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            overflow: hidden;
+        }
+        #system-status { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            font-size: 1.2rem;
+            text-shadow: 1px 1px 2px black; 
+        }
+        #avatar-container {
+            width: 500px;
+            height: 500px;
+            background-color: #1e1e1e;
+            border: 2px solid #333;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        img { 
+            max-width: 100%; 
+            max-height: 100%; 
+            object-fit: contain; 
+        }
+        #translation-output { 
+            margin-top: 30px; 
+            font-size: 2.5rem; 
+            font-weight: bold;
+            color: #FFFFFF; 
+            min-height: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div id="system-status">System Initializing...</div>
+    
+    <div id="avatar-container">
+        <img id="avatar-image" src="images/anim_idle.png" alt="Idle Avatar">
+    </div>
+    
+    <div id="translation-output"></div>
+
+    <script>
+        const statusOverlay = document.getElementById('system-status');
+        const avatarImage = document.getElementById('avatar-image');
+        const translationOutput = document.getElementById('translation-output');
+        
+        let isTranslating = false;
+
+        // 1. Establish WebSocket Connection
+        function initializeBackendConnection() {
+            const socket = new WebSocket('ws://localhost:8765');
+
+            socket.onopen = () => {
+                statusOverlay.innerText = "Connection Active. Awaiting Audio Trigger...";
+                statusOverlay.style.color = "#4CAF50";
+            };
+            
+            socket.onmessage = (event) => {
+                const payload = JSON.parse(event.data);
+                if (payload.status === "success" && payload.animations.length > 0) {
+                    if (!isTranslating) {
+                        executeImageSequence(payload.animations);
+                    }
+                }
+            };
+            
+            socket.onclose = () => {
+                statusOverlay.innerText = "Error: Server Disconnected.";
+                statusOverlay.style.color = "#F44336";
+            };
+        }
+
+        // 2. Process and Render the Image Sequence
+        async function executeImageSequence(animationList) {
+            isTranslating = true;
+            statusOverlay.innerText = "Processing Translation...";
+            
+            for (const animData of animationList) {
+                // Read the .png filename from the Python payload
+                const targetImage = animData.animation_asset;
+                const targetGloss = animData.gloss_id;
+                
+                // Update the UI
+                avatarImage.src = `images/${targetImage}`;
+                translationOutput.innerText = targetGloss;
+                
+                // Add error handling in case an image file is missing from the folder
+                avatarImage.onerror = () => {
+                    console.warn(`System Warning: Missing file images/${targetImage}`);
+                    avatarImage.src = 'images/anim_idle.png';
+                };
+
+                // Hold the gesture on screen for 1.5 seconds
+                await new Promise(resolve => setTimeout(resolve, 1500)); 
+            }
+            
+            // 3. Reset to default state
+            avatarImage.src = 'images/anim_idle.png';
+            translationOutput.innerText = "";
+            statusOverlay.innerText = "Awaiting Audio Trigger...";
+            isTranslating = false;
+        }
+
+        // Boot the system
+        initializeBackendConnection();
+    </script>
+</body>
+</html>

@@ -13,7 +13,6 @@ import io
 from gtts import gTTS
 import pygame
 
-# Block TensorFlow GPU noise for a cleaner terminal
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from textblob import TextBlob
