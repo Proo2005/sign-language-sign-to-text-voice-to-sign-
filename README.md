@@ -26,12 +26,23 @@ git clone [https://github.com/yourusername/sign-language-translator.git](https:/
 cd sign-language-translator
 pip install -r libraries.txt
 
+
+
+
+
+
 File,Function
-dataset.py,Records 500 samples per gesture; saves 126-dimensional vectors to CSV.
-train_model.py,Builds and trains the LSTM Sequential Model using TensorFlow/Keras.
-predict_live.py,"Handles real-time inference, TextBlob correction, and gTTS output."
-server_pipeline.py,Manages the WebSocket bridge for web-based rendering.
-python -m http.server 8000 starts the server
+1.dataset.py,Records 500 samples per gesture; saves 126-dimensional vectors to CSV.
+2.train_model.py,Builds and trains the LSTM Sequential Model using TensorFlow/Keras.
+3.predict_live.py,"Handles real-time inference, TextBlob correction, and gTTS output."
+4.server_pipeline.py,Manages the WebSocket bridge for web-based rendering.
+5.python -m http.server 8000 starts the server
+
+
+
+
+
+
 
 🛠️ UsageData Collection: Run dataset.py to record new gestures into the dataset/ directory.Training: Run train_model.py and select the language (ISL/ASL/BSL/Gestures) to generate .h5 models.Live 
 Execution:Terminal 1: python server_pipeline.py (Starts the Backend)
@@ -39,6 +50,11 @@ Terminal 2: python -m http.server 8000 (Starts the Frontend)
 Open localhost:8000 in your browser.📊 
 Technical SpecificationsFeature Vector: 126 elemts (21 landmarks X 3-coordinates X 2 hands) .
 Neural Network: LSTM (128 units) → Dropout (0.3) → Dense (64) → Softmax.Sampling Rate: 30 FPS captured, resampled for inference stability.Accuracy: ~95.2% on test datasets.
+
+
+
+
+
 
 ### Key Technical Alignments Included:
 * **Algorithm**: Correctly identifies the **LSTM** model and **TensorFlow** framework used in your `train_model.py`.
