@@ -10,22 +10,14 @@ class SemanticGlossMapper:
         # Define the master database of target Gloss structures
         # In a full system, this would be loaded from a JSON or SQL database
         self.gloss_database = {
-            "BOOK MY": [
-                "It is my book.",
-                "I own the book.",
-                "This book belongs to me.",
-                "That is my book."
-            ],
-            "HOW YOU": [
-                "How are you?",
-                "How are you doing?",
-                "How have you been?"
-            ],
-            "NAME YOU WHAT": [
-                "What is your name?",
-                "Who are you?",
-                "May I have your name?"
-            ]
+        "BOOK MY": ["It is my book.", "I own the book.", "This book belongs to me."],
+        "HOW YOU": ["How are you?", "How are you doing?"],
+        "NAME YOU WHAT": ["What is your name?", "Who are you?"],
+    
+        # ADD NEW INTENTS HERE:
+        "HELLO": ["Hello", "Hi", "Hey there", "Greetings"],
+        "THANK YOU": ["Thank you", "Thanks", "I appreciate it"],
+        "PLEASE": ["Please", "Could you please"]
         }
         
         self.intent_embeddings = self._precompute_embeddings()

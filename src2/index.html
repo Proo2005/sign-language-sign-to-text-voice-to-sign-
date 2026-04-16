@@ -47,6 +47,32 @@
             color: #FFFFFF; 
             min-height: 50px;
         }
+        
+        /* Microphone Button Styles */
+        #mic-btn {
+            margin-top: 20px;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        #mic-btn:active { 
+            background-color: #F44336; /* Turns red when holding */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            transform: translateY(2px);
+        }
+        #mic-btn:disabled { 
+            background-color: #555; 
+            cursor: not-allowed; 
+            box-shadow: none;
+        }
     </style>
 </head>
 <body>
@@ -57,21 +83,59 @@
     </div>
     
     <div id="translation-output"></div>
+    
+    <button id="mic-btn" disabled>Connecting...</button>
 
     <script>
         const statusOverlay = document.getElementById('system-status');
         const avatarImage = document.getElementById('avatar-image');
         const translationOutput = document.getElementById('translation-output');
+        const micBtn = document.getElementById('mic-btn');
         
+        let socket;
+        let mediaRecorder;
+        let audioChunks = [];
         let isTranslating = false;
 
-        // 1. Establish WebSocket Connection
+        // 1. Initialize Microphone Access
+        async function initAudio() {
+            try {
+                // Request microphone permission from the user
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                
+                // Collect audio data as it is recorded
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) audioChunks.push(event.data);
+                };
+
+                // When recording stops, package it and send via WebSocket
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    audioChunks = []; // Reset for next recording
+                    
+                    if (socket && socket.readyState === WebSocket.OPEN) {
+                        statusOverlay.innerText = "Transmitting audio to engine...";
+                        socket.send(audioBlob); // Sends the binary file to Python
+                    }
+                };
+            } catch (err) {
+                statusOverlay.innerText = "Error: Microphone access denied.";
+                statusOverlay.style.color = "#F44336";
+                console.error("Mic Error:", err);
+            }
+        }
+
+        // 2. Establish WebSocket Connection
         function initializeBackendConnection() {
-            const socket = new WebSocket('ws://localhost:8765');
+            socket = new WebSocket('ws://localhost:8765');
 
             socket.onopen = () => {
-                statusOverlay.innerText = "Connection Active. Awaiting Audio Trigger...";
+                statusOverlay.innerText = "Connection Active. Hold button to speak.";
                 statusOverlay.style.color = "#4CAF50";
+                micBtn.innerText = "Hold to Speak";
+                micBtn.disabled = false;
+                initAudio(); // Activate the mic once connected
             };
             
             socket.onmessage = (event) => {
@@ -80,30 +144,34 @@
                     if (!isTranslating) {
                         executeImageSequence(payload.animations);
                     }
+                } else if (payload.status === "no_speech") {
+                    statusOverlay.innerText = "No speech detected. Try again.";
+                    micBtn.innerText = "Hold to Speak";
                 }
             };
             
             socket.onclose = () => {
                 statusOverlay.innerText = "Error: Server Disconnected.";
                 statusOverlay.style.color = "#F44336";
+                micBtn.innerText = "Disconnected";
+                micBtn.disabled = true;
             };
         }
 
-        // 2. Process and Render the Image Sequence
+        // 3. Process and Render the Image Sequence
         async function executeImageSequence(animationList) {
             isTranslating = true;
             statusOverlay.innerText = "Processing Translation...";
+            micBtn.disabled = true; // Disable button while avatar is signing
             
             for (const animData of animationList) {
-                // Read the .png filename from the Python payload
                 const targetImage = animData.animation_asset;
                 const targetGloss = animData.gloss_id;
                 
-                // Update the UI
                 avatarImage.src = `images/${targetImage}`;
                 translationOutput.innerText = targetGloss;
                 
-                // Add error handling in case an image file is missing from the folder
+                // Fallback if image doesn't exist
                 avatarImage.onerror = () => {
                     console.warn(`System Warning: Missing file images/${targetImage}`);
                     avatarImage.src = 'images/anim_idle.png';
@@ -113,12 +181,38 @@
                 await new Promise(resolve => setTimeout(resolve, 1500)); 
             }
             
-            // 3. Reset to default state
+            // Reset to default state
             avatarImage.src = 'images/anim_idle.png';
             translationOutput.innerText = "";
-            statusOverlay.innerText = "Awaiting Audio Trigger...";
+            statusOverlay.innerText = "Connection Active. Hold button to speak.";
+            micBtn.disabled = false;
+            micBtn.innerText = "Hold to Speak";
             isTranslating = false;
         }
+
+        // 4. Push-to-Talk Button Listeners
+        micBtn.addEventListener('mousedown', () => {
+            if (mediaRecorder && mediaRecorder.state === "inactive") {
+                mediaRecorder.start();
+                micBtn.innerText = "Listening...";
+                statusOverlay.innerText = "Recording... Speak now.";
+            }
+        });
+
+        micBtn.addEventListener('mouseup', () => {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                micBtn.innerText = "Processing...";
+            }
+        });
+        
+        // Also handle mouse leaving the button while clicking
+        micBtn.addEventListener('mouseleave', () => {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                micBtn.innerText = "Processing...";
+            }
+        });
 
         // Boot the system
         initializeBackendConnection();

@@ -27,9 +27,33 @@ if __name__ == "__main__":
     processor = TextToGlossProcessor()
     
     test_sentences = [
-        "How are you?",
-        "It is my book.",
-        "I own the book."
+    # --- Intent: HOW YOU ---
+    "How are you?",
+    "How are you doing?",
+    "How have you been?",
+
+    # --- Intent: BOOK MY ---
+    "It is my book.",
+    "I own the book.",
+    "This book belongs to me.",
+    "That is my book.",
+
+    # --- Intent: NAME YOU WHAT ---
+    "What is your name?",
+    "Who are you?",
+    "May I have your name?",
+
+    # --- Expanded Intents (If implemented) ---
+    "Hello",
+    "Greetings",
+    "Thank you",
+    "I appreciate it",
+    "Could you please",
+
+    # --- Out-of-Bounds / Edge Cases (To test the 0.65 threshold) ---
+    "The weather is nice.",
+    "Moves",
+    "I am going to the store."
     ]
     
     for sentence in test_sentences:

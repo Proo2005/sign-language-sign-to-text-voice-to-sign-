@@ -1,6 +1,7 @@
 import asyncio
 import websockets
 import json
+import os
 from voice_engine import VoiceCaptureEngine
 from semantic_engine import SemanticGlossMapper
 
@@ -15,7 +16,10 @@ class AvatarWebSocketServer:
             "BOOK": "anim_book.png",
             "MY": "anim_possessive_chest.png",
             "UNKNOWN": "anim_shrug.png",
-            "INTENT": "anim_idle.png"
+            "INTENT": "anim_idle.png",
+            "NAME": "anim_name.png",
+            "PLEASE": "anim_please.png",
+            "THANK": "anim_thank.png"
         }
 
     def generate_engine_payload(self, gloss_sequence):
@@ -32,40 +36,40 @@ class AvatarWebSocketServer:
         return json.dumps({"status": "success", "animations": payload})
 
     async def run_capture_cycle(self, websocket):
-        """Continuously listens and transmits data to the connected client."""
-        print("\n[CLIENT CONNECTED] Ready to receive audio triggers.")
+        print("\n[CLIENT CONNECTED] Ready to receive browser audio.")
         try:
-            while True:
-                # In a production app, the browser would send the audio buffer.
-                # For this prototype, we trigger the local microphone loop.
-                print("\nPress ENTER in the terminal to speak (or Ctrl+C to quit)...")
-                await asyncio.to_thread(input) 
-                
-                temp_audio = await asyncio.to_thread(self.asr.record_audio, 4)
-                spoken_text = await asyncio.to_thread(self.asr.transcribe, temp_audio)
-                
-                if not spoken_text:
-                    print("-> [DIAGNOSTIC] No speech detected by Whisper. Verify microphone gain.")
-                    continue
+            # This loop keeps the connection alive and waits for the browser
+            async for message in websocket:
+                if isinstance(message, bytes):
+                    print("-> Received audio packet from browser. Processing...")
                     
-                print(f"-> Transcribed: '{spoken_text}'")
-                gloss_array, _ = self.nlp.translate_to_unified_gloss(spoken_text)
-                
-                json_payload = self.generate_engine_payload(gloss_array)
-                
-                # Transmit the payload to the web browser
-                await websocket.send(json_payload)
-                print("-> Payload transmitted to frontend.")
-                
+                    temp_file = "temp_browser_audio.webm"
+                    with open(temp_file, "wb") as f:
+                        f.write(message)
+                    
+                    spoken_text = await asyncio.to_thread(self.asr.transcribe_file, temp_file)
+                    
+                    if not spoken_text:
+                        print("-> No speech detected.")
+                        await websocket.send(json.dumps({"status": "no_speech"}))
+                        continue
+                        
+                    print(f"-> Transcribed: '{spoken_text}'")
+                    gloss_array, confidence = self.nlp.translate_to_unified_gloss(spoken_text)
+                    print(f"-> Semantic Match: {gloss_array} (Confidence: {confidence:.2f})")
+                    
+                    json_payload = self.generate_engine_payload(gloss_array)
+                    await websocket.send(json_payload)
+                    print("-> Payload transmitted to frontend.")
+                    
         except websockets.exceptions.ConnectionClosed:
             print("[CLIENT DISCONNECTED]")
 
 async def main():
     server = AvatarWebSocketServer()
-    # Start the WebSocket server on port 8765
-    async with websockets.serve(server.run_capture_cycle, "localhost", 8765):
+    async with websockets.serve(server.run_capture_cycle, "localhost", 8765, ping_interval=None):
         print("\nWebSocket Server running on ws://localhost:8765")
-        await asyncio.Future()  # Run forever
+        await asyncio.Future()
 
 if __name__ == "__main__":
     asyncio.run(main())
